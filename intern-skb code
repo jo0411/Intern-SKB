@@ -1,0 +1,1215 @@
+#1 1차과제 - 1
+# 라이브러리 세팅
+install.packages("rvest")
+install.packages("wordcloud")
+install.packages("RColorBrewer")
+install.packages("KoNLP")
+install.packages("rJava")
+install.packages("dplyr")
+install.packages("tidyr")
+library(rvest)
+library(wordcloud)
+library(RColorBrewer)
+library(KoNLP) # default: Sejong Dictionary -> NiaDic
+library(rJava)
+library(dplyr)
+library(tidyr)
+useNIADic()
+Sys.setenv(JAVA_HOME="C:/Program Files/Java/jre1.8.0_211")
+
+naver_url_sub <- 'https://search.naver.com/search.naver?where=article&ie=utf8&query=%EB%B9%84%ED%8B%B0%EB%B9%84&prdtype=0&t=0&st=rel&date_option=0&date_from=&date_to=&srchby=text&dup_remove=1&cafe_url=&without_cafe_url=&board=&sm=tab_pge&start='
+page <- seq(from=1, by=10, length.out=100)
+View(page)
+for(page_num in page){
+  naver_url <- paste0(naver_url_sub, page)
+  
+  print(naver_url)
+}
+
+# 본문 링크 추출
+blog_url <- c()
+
+for(page_num in page){
+  naver_url <- paste0(naver_url_sub, page_num)
+  naver_html <- read_html(naver_url)
+  temp <- unique(html_nodes(naver_html,'#content')%>%
+                 html_nodes('.blog')%>%
+                 html_nodes('#elThumbnailResultArea')%>%
+                 html_nodes('.sh_blog_title')%>%
+                 html_attr('href'))
+  blog_url <- c(blog_url, temp)
+  print(page_num)
+}
+
+View(blog_url)
+
+# 제목, 본문 요약글 추출
+blog_title <- c()
+blog_date <- c()
+blog_passage <- c()
+for(page_num in page){
+  naver_url <- paste0(naver_url_sub, page_num)
+  naver_html <- read_html(naver_url)
+  tmptitle <- html_text(html_nodes(naver_html,'#content')%>%
+                   html_nodes('.cafe_article')%>%
+                   html_nodes('#elThumbnailResultArea')%>%
+                   html_nodes('.sh_cafe_title'))
+                    
+  tmpdate <- html_text(html_nodes(naver_html,'#content')%>%
+                                 html_nodes('.cafe_article')%>%
+                                 html_nodes('#elThumbnailResultArea')%>%
+                                 html_nodes('.txt_inline'))
+  tmppassage <- html_text(html_nodes(naver_html,'#content')%>%
+                         html_nodes('.cafe_article')%>%
+                         html_nodes('#elThumbnailResultArea')%>%
+                         html_nodes('.sh_cafe_passage'))
+                     
+                   
+  blog_title <- c(blog_title, tmptitle)
+  blog_date <- c(blog_date, tmpdate)
+  blog_passage <- c(blog_passage,tmppassage)
+  blogframe <- data.frame(blog_date,blog_title,blog_passage)
+  print(page_num)
+}
+View(blog_title)
+
+blog <- blogframe %>% filter(blog_date!='어제 '&blog_date!='2일 전 '&blog_date!='3일 전 '&blog_date!='4일 전 '&blog_date!='5일 전 '&blog_date!='6일 전 '&blog_date!='7일 전 '&
+                               blog_date!='1시간 전 '&blog_date!='2시간 전 '&blog_date!='3시간 전 '&blog_date!='4시간 전 '&blog_date!='5시간 전 '&blog_date!='6시간 전 '
+                             &blog_date!='7시간 전 '&blog_date!='8시간 전 '&blog_date!='9시간 전 '&blog_date!='10시간 전 '&blog_date!='11시간 전 '&blog_date!='12시간 전 '
+                             &blog_date!='13시간 전 '&blog_date!='14시간 전 '&blog_date!='15시간 전 '&blog_date!='16시간 전 '&blog_date!='17시간 전 '&blog_date!='18시간 전 '
+                             &blog_date!='19시간 전 '&blog_date!='20시간 전 '&blog_date!='21시간 전 '&blog_date!='22시간 전 '&blog_date!='23시간 전 '&blog_date!='24시간 전 ')
+blogdata <- blog %>% separate(blog_date,".")
+
+blog1 <- blog[grep("계약",blog$blog_passage),]
+
+
+bloga <- unite(blogdata,"content",c(blog_title,blog_passage),sep=",")
+names(bloga) <- c('date','content')
+blog_content <- as.vector(bloga$content)
+
+write.table(blog_content, "C:/Users/SKbroadband/Desktop/R개인과제/content.txt",
+            sep=",", row.names=FALSE, quote=FALSE, append=TRUE, na="NA")
+
+View(blog_content)
+
+bloga2019 <- bloga %>% filter(date=="2019")
+blog2019_content <- as.vector(bloga2019$content)
+write.table(blog2019_content, "C:/Users/SKbroadband/Desktop/R개인과제/content2019.txt",
+            sep=",", row.names=FALSE, quote=FALSE, append=TRUE, na="NA")
+
+# 텍스트 마이닝
+textdata <- sapply(blog_content, extractNoun, USE.NAMES=F)
+textdata_unlist <- unlist(textdata)
+head(textdata_unlist)
+wordcount <- table(textdata_unlist)
+head(wordcount)
+wordcount_top <- head(sort(wordcount, decreasing=T),50)
+
+mergeUserDic(data.frame(c("스피커"),"ncn"))
+mergeUserDic(data.frame(c("블루투스"),"ncn"))
+mergeUserDic(data.frame(c("채널"),"ncn"))
+mergeUserDic(data.frame(c("어벤져스"),"ncn"))
+mergeUserDic(data.frame(c("살아있는동화"),"ncn"))
+mergeUserDic(data.frame(c("살아있는 동화"),"ncn"))
+mergeUserDic(data.frame(c("동화"),"ncn"))
+mergeUserDic(data.frame(c("VOD"),"ncn"))
+mergeUserDic(data.frame(c("캐리tv"),"ncn"))
+mergeUserDic(data.frame(c("캐리 tv"),"ncn"))
+mergeUserDic(data.frame(c("홈스쿨링"),"ncn"))
+mergeUserDic(data.frame(c("어벤져스"),"ncn"))
+mergeUserDic(data.frame(c("재밌게"),"ncn"))
+mergeUserDic(data.frame(c("즐거워"),"ncn"))
+mergeUserDic(data.frame(c("신나게"),"ncn"))
+mergeUserDic(data.frame(c("즐겁게"),"ncn"))
+mergeUserDic(data.frame(c("좋아"),"ncn"))
+
+data_un <- Filter(function(x){nchar(x)>=2},textdata_unlist)
+wordcount <- table(data_un)
+head(wordcount)
+wordcount_top <- head(sort(wordcount, decreasing=T),50)
+data_un <- gsub("사용","",data_un)
+data_un <- gsub("저희","",data_un)
+data_un <- gsub("오늘","",data_un)
+data_un <- gsub("^ㅋ","",data_un)
+data_un <- gsub("보기","",data_un)
+data_un <- gsub("리모콘","리모컨",data_un)
+data_un <- gsub("다들","",data_un)
+data_un <- gsub("브로드밴드","",data_un)
+data_un <- gsub("TV","",data_un)
+data_un <- gsub("사용","",data_un)
+data_un <- gsub("sk","",data_un)
+data_un <- gsub("SRS-BTV5","",data_un)
+data_un <- gsub("이용","",data_un)
+data_un <- gsub("광고","",data_un)
+data_un <- gsub("안내","",data_un)
+data_un <- gsub("티비","",data_un)
+data_un <- gsub("가입","",data_un)
+data_un <- gsub("오늘","",data_un)
+data_un <- gsub("IPTV","",data_un)
+data_un <- gsub("시청","",data_un)
+data_un <- gsub("이번","",data_un)
+data_un <- gsub("방송","",data_un)
+data_un <- gsub("제공","",data_un)
+data_un <- gsub("방법","",data_un)
+data_un <- gsub("하기","",data_un)
+data_un <- gsub("셋탑박스","셋톱박스",data_un)
+data_un <- gsub("안녕","",data_un)
+data_un <- gsub("설치","",data_un)
+data_un <- gsub("tv","",data_un)
+data_un <- gsub("해서","",data_un)
+data_un <- gsub("고객","",data_un)
+data_un <- gsub("시간","",data_un)
+data_un <- gsub("선택","",data_un)
+data_un <- gsub("리모콘","리모컨",data_un)
+data_un <- gsub("순위","",data_un)
+data_un <- gsub("SRS-BTV25","",data_un)
+data_un <- gsub("신청","",data_un)
+data_un <- gsub("월정액","",data_un)
+data_un <- gsub("소개","",data_un)
+data_un <- gsub("보기","",data_un)
+data_un <- gsub("아이들","아이",data_un)
+data_un <- gsub("우리","",data_un)
+data_un <- gsub("체험단","",data_un)
+data_un <- gsub("SONY","",data_un)
+data_un <- gsub("가능","",data_un)
+data_un <- gsub("시작","",data_un)
+data_un <- gsub("하시","",data_un)
+data_un <- gsub("저희","",data_un)
+data_un <- gsub("개월","",data_un)
+data_un <- gsub("얼마","",data_un)
+data_un <- gsub("제품","",data_un)
+data_un <- gsub("컨텐츠","콘텐츠",data_un)
+data_un <- gsub("번개","",data_un)
+data_un <- gsub("장터","",data_un)
+data_un <- gsub("검색","",data_un)
+data_un <- gsub("원정대","",data_un)
+data_un <- gsub("하나","",data_un)
+data_un <- gsub("하면","",data_un)
+data_un <- gsub("들이","",data_un)
+data_un <- gsub("여러분","",data_un)
+data_un <- gsub("진행","",data_un)
+data_un <- gsub("체험","",data_un)
+data_un <- gsub("BTV5","",data_un)
+data_un <- gsub("다시","",data_un)
+data_un <- gsub("마음","",data_un)
+data_un <- gsub("소니","",data_un)
+data_un <- gsub("소식","",data_un)
+data_un <- gsub("종료","",data_un)
+data_un <- gsub("확인","",data_un)
+data_un <- gsub("사실","",data_un)
+data_un <- gsub("생각","",data_un)
+data_un <- gsub("2014","",data_un)
+data_un <- gsub("360","",data_un)
+data_un <- gsub("모델","",data_un)
+data_un <- gsub("설정","",data_un)
+data_un <- gsub("센터","",data_un)
+data_un <- gsub("요즘","",data_un)
+data_un <- gsub("SKB","",data_un)
+data_un <- gsub("기존","",data_un)
+
+data_unlist <- gsub('[~!@#$%&*()_+=?<>]','',data_unlist)
+data_un <- gsub("\\d+","",data_un)
+data_un <- Filter(function(x){nchar(x)>=2},data_un)
+data_unlist = gsub("재미\\S*","재밌다",data_un)
+data_unlist = gsub("즐거\\S*","즐겁다",data_unlist)
+data_unlist = gsub("신나\\S*","신난다",data_unlist)
+
+data_unlist <- Filter(function(x){nchar(x)>=2},data_unlist)
+data_un <- gsub("SRS-","",data_un)
+data_un <- gsub("IP","",data_un)
+data_un <- gsub("누구","nugu",data_un)
+data_unlist <- gsub("하려","",data_unlist)
+
+
+wordcount_final <- table(data_unlist)
+head(wordcount_final)
+wordcount_top <- head(sort(wordcount_final, decreasing=T),50)
+pal <- brewer.pal(12,"Dark2")
+
+
+wordcloud(names(wordcount_top),wordcount_top, scale=c(3,1),random.order=FALSE,random.color=TRUE,colors=pal,family="font")
+Sys.setenv(DISPLAY=":0")
+Sys.getenv("DISPLAY")
+capabilities()
+
+# 본문 추출 
+naver_content <- c()
+for(i in 1:length(blog_url)){
+  test_html <- read_html(blog_url[i])
+  test_tmp <- repair_encoding(html_text(html_nodes(test_html,'#postListBody')),from='utf-8')
+  naver_content <- c(naver_content, test_tmp)
+}
+
+blog <- cbind(url=blog__url, content=unlist(naver_content))
+blog <- as.data.frame(blog)
+
+test_html <- read_html(blog_url[3])
+test_tmp <- html_text(html_nodes(test_html,'#postListBody')%>%
+                        html_nodes('.contw-966')%>%
+                        html_nodes('#head-skin')%>%
+                        html_nodes('#body')%>%
+                        html_nodes('#whole-border')%>%
+                        html_nodes('#whole-body')%>%
+                        html_nodes('#wrapper')%>%
+                        html_nodes('#twocols')%>%
+                        html_nodes('#content-area')%>%
+                        html_nodes('#post-area')%>%
+                        html_nodes('#postListBody')%>%
+                        html_nodes('.post-back')%>%
+                        html_nodes('#printPost1')%>%
+                        html_nodes('.bcc')%>%
+                        html_nodes('#post-view221523724411')%>%
+                        html_nodes('.se-viewer')%>%
+                        html_nodes('.se-main-container')%>%
+                        html_nodes('.se-component')%>%
+                        html_nodes('.se-component-content')%>%
+                        html_nodes('.se-section')%>%
+                        html_nodes('.se-module')%>%
+                        html_nodes('.se-text-paragraph')%>%
+                        html_nodes('.se-fs-'))
+
+
+# 1차과제 - 2
+# 텍스트 마이닝
+#KT - good
+KT_text <- KT_newgood %>% select(Text)
+KT_text_vec <- as.vector(KT_text$Text)
+
+KT_textdata <- sapply(KT_text_vec, extractNoun, USE.NAMES=F)
+KT_textdata_unlist <- unlist(KT_textdata)
+
+wordcount <- table(KT_data_un)
+wordcount_top <- head(sort(wordcount, decreasing=T),50)
+KT_data_un <- Filter(function(x){nchar(x)>=2},KT_textdata_unlist)
+
+KT_data_un <- gsub("KT","",KT_data_un)
+KT_data_un <- gsub("제공","",KT_data_un)
+KT_data_un <- gsub("올레","",KT_data_un)
+KT_data_un <- gsub("tv","",KT_data_un)
+KT_data_un <- gsub("이용","",KT_data_un)
+KT_data_un <- gsub("출시","",KT_data_un)
+KT_data_un <- gsub("TV","",KT_data_un)
+KT_data_un <- gsub("기반","",KT_data_un)
+KT_data_un <- gsub("사업","",KT_data_un)
+KT_data_un <- gsub("영상","",KT_data_un)
+KT_data_un <- gsub("차량","",KT_data_un)
+KT_data_un <- gsub("때문","",KT_data_un)
+KT_data_un <- gsub("고객","",KT_data_un)
+KT_data_un <- gsub("시간","",KT_data_un)
+KT_data_un <- gsub("활용","",KT_data_un)
+KT_data_un <- gsub("BBF","",KT_data_un)
+KT_data_un <- gsub("가지","",KT_data_un)
+KT_data_un <- gsub("구리선","",KT_data_un)
+KT_data_un <- gsub("이벤트","",KT_data_un)
+KT_data_un <- gsub("가능","",KT_data_un)
+KT_data_un <- gsub("사용","",KT_data_un)
+KT_data_un <- gsub("대상","",KT_data_un)
+
+KT_data_un <- Filter(function(x){nchar(x)>=2},KT_data_un)
+
+KT_data_un <- gsub('[~!@#$%^&*()_+=?<>]','',KT_data_un)
+KT_data_un <- gsub("\\d+","",KT_data_un)
+KT_data_un <- Filter(function(x){nchar(x)>=2},KT_data_un)
+KT_data_unlist = gsub("재미\\S*","재밌다",KT_data_un)
+KT_data_unlist = gsub("즐거\\S*","즐겁다",KT_data_unlist)
+KT_data_unlist = gsub("신나\\S*","신난다",KT_data_unlist)
+
+KT_data_unlist <- Filter(function(x){nchar(x)>=2},KT_data_unlist)
+
+wordcount_final <- table(KT_data_unlist)
+head(wordcount_final)
+wordcount_top <- head(sort(wordcount_final, decreasing=T),50)
+pal <- brewer.pal(8,"Dark2")
+
+
+wordcloud(names(wordcount_top),wordcount_top, scale=c(3,1),random.order=FALSE,random.color=TRUE,colors=pal,family="font")
+
+#KT - bad
+KT_text_b <- KT_newbad %>% select(Text)
+KT_text_vec_b <- as.vector(KT_text_b$Text)
+
+KT_textdata_b <- sapply(KT_text_vec_b, extractNoun, USE.NAMES=F)
+KT_textdata_unlist_b <- unlist(KT_textdata_b)
+
+wordcount <- table(KT_data_un)
+wordcount_top <- head(sort(wordcount, decreasing=T),50)
+KT_data_un <- Filter(function(x){nchar(x)>=2},KT_textdata_unlist_b)
+
+KT_data_un_b <- gsub("KT","",KT_data_un)
+KT_data_un_b <- gsub("대표","",KT_data_un_b)
+KT_data_un_b <- gsub("아들","",KT_data_un_b)
+KT_data_un_b <- gsub("취업","",KT_data_un_b)
+KT_data_un_b <- gsub("황교안","",KT_data_un_b)
+KT_data_un_b <- gsub("청년","",KT_data_un_b)
+KT_data_un_b <- gsub("스펙","",KT_data_un_b)
+KT_data_un_b <- gsub("한국","",KT_data_un_b)
+KT_data_un_b <- gsub("의혹","",KT_data_un_b)
+KT_data_un_b <- gsub("kt","",KT_data_un_b)
+KT_data_un_b <- gsub("채용","",KT_data_un_b)
+KT_data_un_b <- gsub("기자","",KT_data_un_b)
+KT_data_un_b <- gsub("자유","",KT_data_un_b)
+KT_data_un_b <- gsub("학점","",KT_data_un_b)
+KT_data_un_b <- gsub("논란","",KT_data_un_b)
+KT_data_un_b <- gsub("자신","",KT_data_un_b)
+KT_data_un_b <- gsub("발언","",KT_data_un_b)
+KT_data_un_b <- gsub("학생","",KT_data_un_b)
+KT_data_un_b <- gsub("의원","",KT_data_un_b)
+KT_data_un_b <- gsub("토익","",KT_data_un_b)
+KT_data_un_b <- gsub("관련","",KT_data_un_b)
+KT_data_un_b <- gsub("사용","",KT_data_un_b)
+KT_data_un_b <- gsub("들이","",KT_data_un_b)
+KT_data_un_b <- gsub("정도","",KT_data_un_b)
+KT_data_un_b <- gsub("회장","",KT_data_un_b)
+KT_data_un_b <- gsub("사실","",KT_data_un_b)
+KT_data_un_b <- gsub("심사","",KT_data_un_b)
+KT_data_un_b <- gsub("비판","",KT_data_un_b)
+KT_data_un_b <- gsub("시간","",KT_data_un_b)
+
+KT_data_un_b <- Filter(function(x){nchar(x)>=2},KT_data_un_b)
+
+KT_data_un_b <- gsub('[~!@#$%^&*()_+=?<>]','',KT_data_un_b)
+KT_data_un_b <- gsub("\\d+","",KT_data_un_b)
+KT_data_un_b <- Filter(function(x){nchar(x)>=2},KT_data_un_b)
+KT_data_unlist_b = gsub("재미\\S*","재밌다",KT_data_un_b)
+KT_data_unlist_b = gsub("즐거\\S*","즐겁다",KT_data_unlist_b)
+KT_data_unlist_b = gsub("신나\\S*","신난다",KT_data_unlist_b)
+
+KT_data_unlist_b <- Filter(function(x){nchar(x)>=2},KT_data_unlist_b)
+
+wordcount_final <- table(KT_data_unlist_b)
+head(wordcount_final)
+wordcount_top <- head(sort(wordcount_final, decreasing=T),100)
+pal <- brewer.pal(8,"Dark2")
+
+
+wordcloud(names(wordcount_top),wordcount_top, scale=c(4,1),random.order=FALSE,random.color=TRUE,colors=pal,family="font")
+
+#시계열 정렬
+library(dplyr)
+KT_time <- KT_new %>% group_by(Date,Sentiment) %>% summarise(count=n())
+KT_time <- KT_time %>% filter(Sentiment=="긍정") %>% select(count)
+
+sent_ts <-ts(KT_time$count)
+
+plot.ts(sent_ts)
+sent_sma7 <-SMA(sent_ts, n=7)
+par(mfrow=c(2,2))
+dev.off()
+plot.ts(sent_sma7)
+sent_diff1 <- diff(sent_ts,differences=1)
+plot.ts(sent_diff1)
+
+
+#시계열 정렬 - LG
+library(dplyr)
+LG_time <- LG_new %>% group_by(Date,Sentiment) %>% summarise(count=n())
+LG_time <- LG_time %>% filter(Sentiment=="부정") %>% select(count)
+
+sent_ts <-ts(LG_time$count)
+
+plot.ts(sent_ts)
+sent_sma7 <-SMA(sent_ts, n=7)
+par(mfrow=c(2,2))
+dev.off()
+plot.ts(sent_sma7)
+sent_diff1 <- diff(sent_ts,differences=1)
+plot.ts(sent_diff1)
+
+
+#LG - good
+LG_text <- LG_newgood %>% select(Text)
+LG_text_vec <- as.vector(LG_text$Text)
+
+LG_textdata <- sapply(LG_text_vec, extractNoun, USE.NAMES=F)
+LG_textdata_unlist <- unlist(LG_textdata)
+
+wordcount <- table(LG_data_un)
+wordcount_top <- head(sort(wordcount, decreasing=T),50)
+LG_data_un <- Filter(function(x){nchar(x)>=2},LG_textdata_unlist)
+
+LG_data_un <- gsub("LG","",LG_data_un)
+LG_data_un <- gsub("유플러스","",LG_data_un)
+LG_data_un <- gsub("티비","",LG_data_un)
+LG_data_un <- gsub("tv","",LG_data_un)
+LG_data_un <- gsub("이용","",LG_data_un)
+LG_data_un <- gsub("시간","",LG_data_un)
+LG_data_un <- gsub("TV","",LG_data_un)
+LG_data_un <- gsub("들이","",LG_data_un)
+LG_data_un <- gsub("영상","",LG_data_un)
+LG_data_un <- gsub("제공","",LG_data_un)
+LG_data_un <- gsub("이번","",LG_data_un)
+LG_data_un <- gsub("시청","",LG_data_un)
+LG_data_un <- gsub("이벤트","",LG_data_un)
+LG_data_un <- gsub("해서","",LG_data_un)
+LG_data_un <- gsub("지원","",LG_data_un)
+LG_data_un <- gsub("진행","",LG_data_un)
+LG_data_un <- gsub("우리","",LG_data_un)
+LG_data_un <- gsub("하기","",LG_data_un)
+LG_data_un <- gsub("필요","",LG_data_un)
+LG_data_un <- gsub("시설","",LG_data_un)
+LG_data_un <- gsub("가능","",LG_data_un)
+LG_data_un <- gsub("오늘","",LG_data_un)
+LG_data_un <- gsub("사용","",LG_data_un)
+LG_data_unlist <- gsub("ㅇㅇㅇㅇ","",LG_data_unlist)
+LG_data_un <- Filter(function(x){nchar(x)>=2},LG_data_un)
+
+LG_data_un <- gsub('[~!@#$%^&*()_+=?<>]','',LG_data_un)
+LG_data_un <- gsub("\\d+","",LG_data_un)
+LG_data_un <- Filter(function(x){nchar(x)>=2},LG_data_un)
+LG_data_unlist = gsub("재미\\S*","재밌다",LG_data_un)
+LG_data_unlist = gsub("즐거\\S*","즐겁다",LG_data_unlist)
+LG_data_unlist = gsub("신나\\S*","신난다",LG_data_unlist)
+
+LG_data_unlist <- Filter(function(x){nchar(x)>=2},LG_data_unlist)
+
+wordcount_final <- table(LG_data_unlist)
+head(wordcount_final)
+wordcount_top <- head(sort(wordcount_final, decreasing=T),50)
+pal <- brewer.pal(8,"Dark2")
+
+
+wordcloud(names(wordcount_top),wordcount_top, scale=c(3,1),random.order=FALSE,random.color=TRUE,colors=pal,family="font")
+
+
+#LG - bad
+LG_text_b <- LG_newbad %>% select(Text)
+LG_text_vec_b <- as.vector(LG_text_b$Text)
+
+LG_textdata_b <- sapply(LG_text_vec_b, extractNoun, USE.NAMES=F)
+LG_textdata_unlist_b <- unlist(LG_textdata_b)
+
+wordcount <- table(LG_data_un_b)
+wordcount_top <- head(sort(wordcount, decreasing=T),50)
+LG_data_un_b <- Filter(function(x){nchar(x)>=2},LG_textdata_unlist_b)
+
+LG_data_un_b <- gsub("LG","",LG_data_un_b)
+LG_data_un_b <- gsub("유플러스","",LG_data_un_b)
+LG_data_un_b <- gsub("LGU","",LG_data_un_b)
+LG_data_un_b <- gsub("사용","",LG_data_un_b)
+LG_data_un_b <- gsub("보기","",LG_data_un_b)
+LG_data_un_b <- gsub("TV","",LG_data_un_b)
+LG_data_un_b <- gsub("추가","",LG_data_un_b)
+LG_data_un_b <- gsub("https","",LG_data_un_b)
+LG_data_un_b <- gsub("tv","",LG_data_un_b)
+LG_data_un_b <- gsub("URL","",LG_data_un_b)
+LG_data_un_b <- gsub("복사","",LG_data_un_b)
+LG_data_un_b <- gsub("","",LG_data_un_b)
+
+LG_data_un_b <- Filter(function(x){nchar(x)>=2},LG_data_un_b)
+
+LG_data_un_b <- gsub('[~!@#$%^&*()_+=?<>]','',LG_data_un_b)
+LG_data_un_b <- gsub("\\d+","",LG_data_un_b)
+LG_data_un_b <- Filter(function(x){nchar(x)>=2},LG_data_un_b)
+LG_data_unlist_b = gsub("재미\\S*","재밌다",LG_data_un_b)
+LG_data_unlist_b = gsub("즐거\\S*","즐겁다",LG_data_unlist_b)
+LG_data_unlist_b = gsub("신나\\S*","신난다",LG_data_unlist_b)
+
+LG_data_unlist_b <- Filter(function(x){nchar(x)>=2},LG_data_unlist_b)
+
+wordcount_final <- table(LG_data_unlist_b)
+head(wordcount_final)
+wordcount_top <- head(sort(wordcount_final, decreasing=T),50)
+pal <- brewer.pal(8,"Dark2")
+
+
+wordcloud(names(wordcount_top),wordcount_top, scale=c(3,1),random.order=FALSE,random.color=TRUE,colors=pal,family="font")
+
+# 1차과제 - 3
+install.packages("plotrix")
+install.packages("TTR")
+install.packages("forecast")
+
+library(plotrix)
+library(dplyr)
+library(TTR)
+library(forecast)
+data <- read.csv("Snsdata1.csv",header=TRUE)
+SK <- data %>% filter(Brand=="SK브로드밴드")
+LG <- data %>% filter(Brand=="LGU+")
+KT <- data %>% filter(Brand=="KT")
+circle <- table(KT_twitter$Sentiment)
+circle
+pie(circle)
+
+label <- paste(names(circle),"\n",circle/sum(circle)*100)
+label
+pct <- round(circle/sum(circle)*100,2)
+label <- paste(names(circle),"\n",pct,"%")
+pie(circle,labels=label,main="SK_instagram")
+
+SK_naverblog <- sk_pn %>% filter(Site=="네이버 블로그")
+SK_instagram <- sk_pn %>% filter(Site== "인스타그램")
+SK_facebook <- sk_pn %>% filter(Site== "페이스북")
+SK_twitter <- sk_pn %>% filter(Site=="트위터")
+
+LG_naverblog <- lg_pn %>% filter(Site=="네이버 블로그")
+LG_instagram <- lg_pn %>% filter(Site== "인스타그램")
+LG_facebook <- lg_pn %>% filter(Site== "페이스북")
+LG_twitter <- lg_pn %>% filter(Site=="트위터")
+
+KT_naverblog <- kt_pn %>% filter(Site=="네이버 블로그")
+KT_instagram <- kt_pn %>% filter(Site== "인스타그램")
+KT_facebook <- kt_pn %>% filter(Site== "페이스북")
+KT_twitter <- kt_pn %>% filter(Site=="트위터")
+
+#특정행만 추출
+check <- SK[grep("비티비",SK$Text),]
+check1 <- SK[grep("BTV",SK$Text),]
+check2 <- SK[grep("Btv",SK$Text),]
+check3 <- SK[grep("btv",SK$Text),]
+check4 <- SK[grep("인터넷",SK$Text),]
+SK_new <- rbind(check,check1,check2,check3,check4)
+SK_new <- SK_new %>% filter(Sentiment!="중립")
+skcheck <- SK_newbad[grep("음성",SK_newbad$Text),]
+library(dplyr)
+sk_pn <- SK %>% filter(Sentiment!="중립")
+kt_pn <- KT %>% filter(Sentiment!="중립")
+lg_pn <- LG %>% filter(Sentiment!="중립")
+check1 <- KT[grep("기가",KT$Text),]
+check2 <- KT[grep("올레",KT$Text),]
+check3 <- KT[grep("올레TV",KT$Text),]
+check4 <- KT[grep("올레티비",KT$Text),]
+check5 <- KT[grep("인터넷",KT$Text),]
+KT_new <- rbind(check1,check2,check3,check4,check5)
+KT_new <- KT_new %>% filter(Sentiment!="중립")
+
+check1 <- LG[grep("U+",LG$Text),]
+check2 <- LG[grep("유플러스",LG$Text),]
+check3 <- LG[grep("인공지능",LG$Text),]
+check4 <- LG[grep("클로바",LG$Text),]
+LG_new <- rbind(check1,check2,check3,check4)
+LG_new <- LG_new %>% filter(Sentiment!="중립")
+
+install.packages("data.table")
+library(data.table)
+#시계열 정렬
+SK_time <- SK_new %>% group_by(Date,Sentiment) %>% summarise(count=n())
+SK_time <- SK_time %>% filter(Sentiment=="긍정") %>% select(count)
+
+test_ts <- as.data.table(SK_time)
+sent_ts <-ts(test_ts$count)
+
+plot.ts(sent_ts)
+sent_sma7 <-SMA(sent_ts, n=7)
+par(mfrow=c(2,2))
+dev.off()
+plot.ts(sent_sma7)
+sent_diff1 <- diff(sent_ts,differences=1)
+plot.ts(sent_diff1)
+
+#단어 추출 4/15~4/30
+SK415430$Date <- as.character(SK415430$Date)
+str(SK415430)
+SK415430 <- SK415430 %>% filter(Date < "2019.04.30" & Date > "2019.04.15")
+
+# 텍스트 마이닝
+#SK - good
+SK_text <- SK_newgood %>% select(Text)
+SK_text_vec <- as.vector(SK_text$Text)
+View(SK_text_vec)
+SK_textdata <- sapply(SK_text_vec, extractNoun, USE.NAMES=F)
+SK_textdata_unlist <- unlist(SK_textdata)
+
+head(SK_textdata_unlist)
+wordcount <- table(SK_data_un)
+head(wordcount)
+wordcount_top <- head(sort(wordcount, decreasing=T),50)
+SK_data_un <- Filter(function(x){nchar(x)>=2},SK_textdata_unlist)
+SK_data_un <- gsub("SK","",SK_data_un)
+SK_data_un <- gsub("아이들","아이",SK_data_un)
+SK_data_un <- gsub("영상","",SK_data_un)
+SK_data_un <- gsub("티비","",SK_data_un)
+SK_data_un <- gsub("Btv","",SK_data_un)
+SK_data_un <- gsub("시간","",SK_data_un)
+SK_data_un <- gsub("우리","",SK_data_un)
+SK_data_un <- gsub("이용","",SK_data_un)
+SK_data_un <- gsub("들이","",SK_data_un)
+SK_data_un <- gsub("해서","",SK_data_un)
+SK_data_un <- gsub("btv","",SK_data_un)
+SK_data_un <- gsub("브로드밴드","",SK_data_un)
+SK_data_un <- gsub("tv","",SK_data_un)
+SK_data_un <- gsub("TV","",SK_data_un)
+
+SK_data_un <- gsub("시작","",SK_data_un)
+SK_data_un <- gsub("생각","",SK_data_un)
+SK_data_un <- gsub("고객","",SK_data_un)
+SK_data_un <- gsub("가능","",SK_data_un)
+SK_data_un <- gsub("방송","",SK_data_un)
+SK_data_un <- gsub("하면","",SK_data_un)
+SK_data_un <- gsub("신청","",SK_data_un)
+SK_data_un <- gsub("활용","",SK_data_un)
+SK_data_un <- gsub("하기","",SK_data_un)
+SK_data_un <- gsub("내용","",SK_data_un)
+SK_data_un <- gsub("이번","",SK_data_un)
+SK_data_un <- gsub("저희","",SK_data_un)
+SK_data_un <- gsub("구성","",SK_data_un)
+SK_data_un <- gsub("콘텐츠","컨텐츠",SK_data_un)
+SK_data_un <- gsub("제공","",SK_data_un)
+SK_data_un <- gsub("사용","",SK_data_un)
+
+SK_data_un <- gsub("집중","시청",SK_data_un)
+
+SK_data_un <- gsub("이벤트","",SK_data_un)
+SK_data_un <- gsub("하나","",SK_data_un)
+SK_data_un <- gsub("센터","",SK_data_un)
+SK_data_un <- gsub("출시","",SK_data_un)
+SK_data_un <- gsub("주문","",SK_data_un)
+SK_data_un <- gsub("광고","",SK_data_un)
+SK_data_un <- gsub("구매","",SK_data_un)
+SK_data_un <- gsub("추가","",SK_data_un)
+SK_data_un <- gsub("정도","",SK_data_un)
+SK_data_un <- gsub("시장","",SK_data_un)
+SK_data_un <- gsub("선택","",SK_data_un)
+SK_data_un <- gsub("검색","",SK_data_un)
+SK_data_un <- gsub("때문","",SK_data_un)
+SK_data_un <- Filter(function(x){nchar(x)>=2},SK_data_un)
+
+SK_data_un <- gsub('[~!@#$%^&*()_+=?<>]','',SK_data_un)
+SK_data_un <- gsub("\\d+","",SK_data_un)
+SK_data_un <- Filter(function(x){nchar(x)>=2},SK_data_un)
+SK_data_unlist = gsub("재미\\S*","재밌다",SK_data_un)
+SK_data_unlist = gsub("즐거\\S*","즐겁다",SK_data_unlist)
+SK_data_unlist = gsub("신나\\S*","신난다",SK_data_unlist)
+
+SK_data_unlist <- Filter(function(x){nchar(x)>=2},SK_data_unlist)
+
+wordcount_final <- table(SK_data_unlist)
+head(wordcount_final)
+wordcount_top <- head(sort(wordcount_final, decreasing=T),50)
+pal <- brewer.pal(8,"Dark2")
+
+
+wordcloud(names(wordcount_top),wordcount_top, scale=c(3,1),random.order=FALSE,random.color=TRUE,colors=pal,family="font")
+
+
+
+# sns에서 단어 추출
+SK_twitterbad <- SK_twitter %>% filter(Sentiment=="부정")
+SK_twittergood <- SK_twitter %>% filter(Sentiment=="긍정")
+SK_newgood <- SK_new %>% filter(Sentiment=="긍정")
+SK_newbad <- SK_new %>% filter(Sentiment=="부정")
+KT_newgood <- KT_new %>% filter(Sentiment=="긍정")
+KT_newbad <- KT_new %>% filter(Sentiment=="부정")
+LG_newgood <- LG_new %>% filter(Sentiment=="긍정")
+LG_newbad <- LG_new %>% filter(Sentiment=="부정")
+
+
+# 텍스트 마이닝
+#SK - bad
+SK_text_b <- SK_newbad %>% select(Text)
+SK_text_vec_b <- as.vector(SK_text_b$Text)
+
+SK_textdata_b <- sapply(SK_text_vec_b, extractNoun, USE.NAMES=F)
+SK_textdata_unlist_b <- unlist(SK_textdata_b)
+
+head(SK_textdata_unlist_b)
+wordcount <- table(SK_data_un_b)
+head(wordcount)
+wordcount_top <- head(sort(wordcount, decreasing=T),100)
+SK_data_un_b <- Filter(function(x){nchar(x)>=2},SK_textdata_unlist_b)
+
+SK_data_un_b <- gsub("SK","",SK_data_un_b)
+SK_data_un_b <- gsub("브로드밴드","",SK_data_un_b)
+SK_data_un_b <- gsub("sk","",SK_data_un_b)
+SK_data_un_b <- gsub("시장","",SK_data_un_b)
+SK_data_un_b <- gsub("사업","",SK_data_un_b)
+SK_data_un_b <- gsub("방송","",SK_data_un_b)
+SK_data_un_b <- gsub("티비","",SK_data_un_b)
+SK_data_un_b <- gsub("사용","",SK_data_un_b)
+SK_data_un_b <- gsub("입찰","",SK_data_un_b)
+
+SK_data_un_b <- gsub("공정위","",SK_data_un_b)
+SK_data_un_b <- gsub("들이","",SK_data_un_b)
+SK_data_un_b <- gsub("통신사","",SK_data_un_b)
+SK_data_un_b <- gsub("교수","",SK_data_un_b)
+SK_data_un_b <- gsub("계약","",SK_data_un_b)
+SK_data_un_b <- gsub("사업자","",SK_data_un_b)
+SK_data_un_b <- gsub("btv","",SK_data_un_b)
+SK_data_un_b <- gsub("하기","",SK_data_un_b)
+SK_data_un_b <- gsub("합산","",SK_data_un_b)
+SK_data_un_b <- gsub("고객","",SK_data_un_b)
+SK_data_un_b <- gsub("낙찰","",SK_data_un_b)
+
+SK_data_un_b <- gsub("기사","",SK_data_un_b)
+
+SK_data_un_b <- gsub("기반","",SK_data_un_b)
+SK_data_un_b <- gsub("심사","",SK_data_un_b)
+SK_data_un_b <- gsub("회사","",SK_data_un_b)
+SK_data_un_b <- gsub("국내","",SK_data_un_b)
+SK_data_un_b <- gsub("Btv","",SK_data_un_b)
+SK_data_un_b <- gsub("때문","",SK_data_un_b)
+SK_data_un_b <- gsub("하지","",SK_data_un_b)
+SK_data_un_b <- gsub("해서","",SK_data_un_b)
+SK_data_un_b <- gsub("센터","",SK_data_un_b)
+SK_data_un_b <- gsub("저희","",SK_data_un_b)
+SK_data_un_b <- gsub("오늘","",SK_data_un_b)
+SK_data_un_b <- gsub("케이","",SK_data_un_b)
+SK_data_un_b <- gsub("방식","",SK_data_un_b)
+SK_data_un_b <- gsub("설치","",SK_data_un_b)
+SK_data_un_b <- gsub("경쟁","",SK_data_un_b)
+SK_data_un_b <- gsub("세종텔레콤","",SK_data_un_b)
+SK_data_un_b <- gsub("이번","",SK_data_un_b)
+SK_data_un_b <- gsub("정도","",SK_data_un_b)
+SK_data_un_b <- gsub("재도","",SK_data_un_b)
+SK_data_un_b <- gsub("진짜","",SK_data_un_b)
+SK_data_un_b <- gsub("투자","",SK_data_un_b)
+SK_data_un_b <- gsub("해결","",SK_data_un_b)
+SK_data_un_b <- gsub("kt","KT",SK_data_un_b)
+SK_data_un_b <- gsub("기업","",SK_data_un_b)
+SK_data_un_b <- gsub("기자","",SK_data_un_b)
+SK_data_un_b <- gsub("상황","",SK_data_un_b)
+SK_data_un_b <- gsub("생각","",SK_data_un_b)
+SK_data_un_b <- gsub("조사","",SK_data_un_b)
+SK_data_un_b <- gsub("진행","",SK_data_un_b)
+SK_data_un_b <- gsub("구축","",SK_data_un_b)
+SK_data_un_b <- gsub("주장","",SK_data_un_b)
+SK_data_un_b <- gsub("지급","",SK_data_un_b)
+SK_data_un_b <- gsub("플랫폼","",SK_data_un_b)
+SK_data_un_b <- gsub("대가","",SK_data_un_b)
+SK_data_un_b <- gsub("산업","",SK_data_un_b)
+
+SK_data_un_b <- Filter(function(x){nchar(x)>=2},SK_data_un_b)
+
+SK_data_un_b <- gsub('[~!@#$%&*()_+=?<>]','',SK_data_un_b)
+SK_data_un_b <- gsub("\\d+","",SK_data_un_b)
+SK_data_un_b <- Filter(function(x){nchar(x)>=2},SK_data_un_b)
+SK_data_unlist_b = gsub("재미\\S*","재밌다",SK_data_un_b)
+SK_data_unlist_b = gsub("즐거\\S*","즐겁다",SK_data_unlist_b)
+SK_data_unlist_b = gsub("신나\\S*","신난다",SK_data_unlist_b)
+
+wordcount_final <- table(SK_data_unlist_b)
+head(wordcount_final)
+wordcount_top <- head(sort(wordcount_final, decreasing=T),50)
+pal <- brewer.pal(8,"Dark2")
+
+
+wordcloud(names(wordcount_top),wordcount_top, scale=c(3,1),random.order=FALSE,random.color=TRUE,colors=pal,family="font")
+
+
+#특정행만 추출
+check <- SK_new[grep("인터넷",SK_new$Text),]
+check1 <- SK_new[grep("KT",SK_new$Text),]
+check2 <- SK_new[grep("LG",SK_new$Text),]
+check3 <- SK_new[grep("btv",SK_new$Text),]
+check4 <- SK_new[grep("회선",SK_new$Text),]
+check5 <- SK_new[grep("음성인식",SK_new$Text),]
+check6 <- SK_new[grep("유플러스",SK_new$Text),]
+SK_bad_check <- rbind(check,check4,check5,check6)
+
+#시계열 정렬
+SK_time_b <- SK_new %>% group_by(Date,Sentiment) %>% summarise(count=n())
+SK_time_b <- SK_time_b %>% filter(Sentiment=="부정") %>% select(count)
+
+test_ts <- as.data.table(SK_time_b)
+sent_ts <-ts(SK_time_b$count)
+
+plot.ts(sent_ts)
+sent_sma7 <-SMA(sent_ts, n=7)
+par(mfrow=c(2,2))
+dev.off()
+plot.ts(sent_sma7)
+sent_diff1 <- diff(sent_ts,differences=1)
+plot.ts(sent_diff1)
+
+#2차과제 - 1
+data <- readxl::read_excel(path="data.xlsx",
+                           
+                           col_names=TRUE)
+
+data[is.na(data)] <- 0
+
+install.packages("caret")
+set.seed(1234)
+install.packages("dtwclust")
+library(dtwclust)
+cluster = tsclust(data, k=10L,distance="dtw_basic", type="hierarchical")
+
+cluster_data <- data[,-1]
+summary(cluster_data)
+data_kmeans <- kmeans(cluster_data, centers = 3, iter.max=10000)
+data_kmeans$centers
+
+install.packages("NbClust")
+library(NbClust)
+nc = NbClust(data=cluster_data,min.nc=2, max.nc=10, method="kmeans")
+
+wssplot=function(data,nc=15,seed=1234,plot=TRUE){
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  
+  for( i in 2:nc){
+    set.seed(seed)
+    wss[i]<-sum(kmeans(data,centers=i)$withinss)
+  }
+  if(plot) plot(1:nc,wss,type="b",xlab="Number pf Clusters",ylab="Within group sum of squares")
+  wss
+}
+
+wssplot(cluster_data)
+library(dplyr)
+cluster_divide <- data_kmeans$cluster
+data_divide <- cbind(data, cluster_divide)
+data_divide2 <- data.frame(data_divide$관리번호, data_divide$cluster_divide)
+str(data_divide2)
+data_seg1 <- data_divide2 %>% filter(data_divide.cluster_divide==1)
+data_seg2 <- data_divide2 %>% filter(data_divide.cluster_divide==2)
+data_seg3 <- data_divide2 %>% filter(data_divide.cluster_divide==3)
+
+install.packages("writexl")
+library(writexl)
+writexl::write_xlsx(data_seg1,path="C:/Users/SKbroadband/Desktop/2차과제R/seg1.xlsx")
+writexl::write_xlsx(data_seg2,path="C:/Users/SKbroadband/Desktop/2차과제R/seg2.xlsx")
+writexl::write_xlsx(data_seg3,path="C:/Users/SKbroadband/Desktop/2차과제R/seg3.xlsx")
+
+#--------------------------------------------------
+# data seg1
+
+data_seg1_new <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/seg1data.xlsx",
+                           
+                           col_names=TRUE)
+
+library(dplyr)
+data_monthly_count <- data_seg1_new %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+barplot(data_monthly_count$n, xlab= "월정액", ylab= "가입자 수")
+data_btv_basic <- data_seg1_new %>% filter(data_seg1_new$`상품 유형`=='Btv 베이직')
+data_btv_lite <- data_seg1_new %>% filter(data_seg1_new$`상품 유형`=='Lite')
+data_btv_prime <- data_seg1_new %>% filter(data_seg1_new$`상품 유형`=='Btv 프라임')
+data_btv_all <- data_seg1_new %>% filter(data_seg1_new$`상품 유형`=='Btv all')
+data_btv_choice <- data_seg1_new %>% filter(data_seg1_new$`상품 유형`=='Btv 선택')
+data_btv_newsmart <- data_seg1_new %>% filter(data_seg1_new$`상품 유형`=='Btv new 스마트')
+
+data_monthly_count_basic <- data_btv_basic %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+data_monthly_count_lite <- data_btv_lite %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+data_monthly_count_prime <- data_btv_prime %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+data_monthly_count_all <- data_btv_all %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+data_monthly_count_choice <- data_btv_choice %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+data_monthly_count_newsmart <- data_btv_newsmart %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+
+# Data seg2
+data_seg2_new <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/seg2data.xlsx",
+                                    
+                                    col_names=TRUE)
+data_monthly_count_2 <- data_seg2_new %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+
+
+
+#Data seg3
+data_seg3_new <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/seg3data.xlsx",
+                                    
+                                    col_names=TRUE)
+data_monthly_count_3 <- data_seg3_new %>% group_by(주요월정액복수가입유형) %>% summarise(n=n())
+
+
+
+# 단일 월정액 SEG 추출
+# SEG1
+seg1_one_monthly <- data_seg1_new %>% filter(주요월정액복수가입유형 =="CJ"|
+                                                          주요월정액복수가입유형 =="JTBC"|
+                                                        주요월정액복수가입유형 =="성인"|
+                                                        주요월정액복수가입유형 =="지상파"|
+                                                        주요월정액복수가입유형 =="프리미어"|
+                                                        주요월정액복수가입유형 =="캐치온"
+                                                        )
+seg1_one_monthly_customer <- seg1_one_monthly[,1]
+
+# SEG2
+seg2_one_monthly <- data_seg2_new %>% filter(주요월정액복수가입유형 =="CJ"|
+                                                          주요월정액복수가입유형 =="JTBC"|
+                                                          주요월정액복수가입유형 =="성인"|
+                                                          주요월정액복수가입유형 =="지상파"|
+                                                          주요월정액복수가입유형 =="프리미어"|
+                                                          주요월정액복수가입유형 =="캐치온"
+)
+seg2_one_monthly_customer <- seg2_one_monthly[,1]
+
+# SEG3
+seg3_one_monthly <- data_seg3_new %>% filter(주요월정액복수가입유형 =="CJ"|
+                                                          주요월정액복수가입유형 =="JTBC"|
+                                                          주요월정액복수가입유형 =="성인"|
+                                                          주요월정액복수가입유형 =="지상파"|
+                                                          주요월정액복수가입유형 =="프리미어"|
+                                                          주요월정액복수가입유형 =="캐치온"
+)
+seg3_one_monthly_customer <- seg3_one_monthly[,1]
+
+writexl::write_xlsx(seg1_one_monthly_customer,path="C:/Users/SKbroadband/Desktop/2차과제R/seg1_one_monthly_cus.xlsx")
+writexl::write_xlsx(seg2_one_monthly_customer,path="C:/Users/SKbroadband/Desktop/2차과제R/seg2_one_monthly_cus.xlsx")
+writexl::write_xlsx(seg3_one_monthly_customer,path="C:/Users/SKbroadband/Desktop/2차과제R/seg3_one_monthly_cus.xlsx")
+
+
+
+# vod 돈 낸 사람의 월정액 가입숫자 파악
+seg1_vodpaid_count <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/seg1vodpaidmonthly.xlsx",
+                                    
+                                    col_names=TRUE)
+seg2_vodpaid_count <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/seg2vodpaidmonthly.xlsx",
+                                         
+                                         col_names=TRUE)
+seg3_vodpaid_count <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/seg3vodpaidmonthly.xlsx",
+                                         
+                                         col_names=TRUE)
+seg1_vodpaid_count_t <- seg1_vodpaid_count %>% group_by(주요월정액복수가입유형) %>% summarize(n=n())
+seg2_vodpaid_count_t <- seg2_vodpaid_count %>% group_by(주요월정액복수가입유형) %>% summarize(n=n())
+seg3_vodpaid_count_t <- seg3_vodpaid_count %>% group_by(주요월정액복수가입유형) %>% summarize(n=n())
+
+seg1_seg_jisang <- seg1_vodpaid_count %>% filter(주요월정액복수가입유형=="지상파")
+writexl::write_xlsx(seg1_seg_premier,path="C:/Users/SKbroadband/Desktop/2차과제R/seg1premiercheck.xlsx")
+writexl::write_xlsx(seg1_seg_cj,path="C:/Users/SKbroadband/Desktop/2차과제R/seg1cjcheck.xlsx")
+writexl::write_xlsx(seg1_seg_jisang,path="C:/Users/SKbroadband/Desktop/2차과제R/seg1jisangcheck.xlsx")
+
+
+# 시청시간대 더 세분화 해서 군집화 (Seg1 중 vod구매한 사람들 대상)
+sebunhwa_data_seg1 <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/watchingtimesebunhwaseg1.xlsx",
+                           
+                           col_names=TRUE)
+sebunhwa_data_seg1[is.na(sebunhwa_data_seg1)] <- 0
+
+sebunhwa_cluster_data <- sebunhwa_data_seg1[,-1]
+summary(sebunhwa_cluster_data)
+sebunhwa_data_kmeans <- kmeans(sebunhwa_cluster_data, centers = 4, iter.max=10000)
+sebunhwa_data_center <- sebunhwa_data_kmeans$centers
+sebunhwa_data_center <- data.frame(sebunhwa_data_center)
+
+wssplot(sebunhwa_cluster_data)
+library(dplyr)
+sebunhwa_cluster_divide <- sebunhwa_data_kmeans$cluster
+sebunhwa_data_divide <- cbind(sebunhwa_data_seg1, sebunhwa_cluster_divide)
+sebunhwa_data_divide2 <- data.frame(sebunhwa_data_divide$서비스관리번호, sebunhwa_data_divide$sebunhwa_cluster_divide)
+str(sebunhwa_data_divide2)
+
+sebunhwa_data_div_cluster2 <- sebunhwa_data_divide2 %>% filter(sebunhwa_data_divide.sebunhwa_cluster_divide==2)
+sebunhwa_data_div_cluster4 <- sebunhwa_data_divide2 %>% filter(sebunhwa_data_divide.sebunhwa_cluster_divide==4)
+sebunhwa_data_div_cluster3 <- sebunhwa_data_divide2 %>% filter(sebunhwa_data_divide.sebunhwa_cluster_divide==3)
+writexl::write_xlsx(sebunhwa_data_center,path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/sebunhwa_data_center.xlsx")
+writexl::write_xlsx(sebunhwa_data_div_cluster3,path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/sebunhwa_data_div_cluster3.xlsx")
+
+
+
+# seg별 요금제별 월정액 분리
+newdata_seg1 <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/요금제별 월정액 분포/seg1 기본료상품과 월정액유형.xlsx",
+                           
+                           col_names=TRUE)
+newdata_seg2 <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/요금제별 월정액 분포/seg2 기본료상품과 월정액유형.xlsx",
+                                   
+                                   col_names=TRUE)
+newdata_seg3 <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/요금제별 월정액 분포/seg3 기본료상품과 월정액유형.xlsx",
+                                   
+                                   col_names=TRUE)
+newdata_segcheck <- newdata_seg1 %>% group_by(base,monthlypay) %>% summarize(n=n())
+newdata_seg1check <- newdata_seg1 %>% group_by(base) %>% summarize(n=n())
+newdata_seg2check <- newdata_seg2 %>% group_by(base) %>% summarize(n=n())
+newdata_seg3check <- newdata_seg3 %>% group_by(base) %>% summarize(n=n())
+library(dplyr)
+names(newdata_seg3) <- c("customernumber","base","monthlypay")
+
+
+#seg1 check
+onlyone <- data_seg1_new %>% filter(주요월정액복수가입유형=="CJ"|
+                                                 주요월정액복수가입유형=="JTBC"|
+                                               주요월정액복수가입유형=="성인"|
+                                               주요월정액복수가입유형=="지상파"|
+                                               주요월정액복수가입유형=="캐치온"|
+                                                 주요월정액복수가입유형=="프리미어")
+onemore <- data_seg1_new %>% filter(주요월정액복수가입유형!="CJ"&
+                                      주요월정액복수가입유형!="JTBC"&
+                                      주요월정액복수가입유형!="성인"&
+                                      주요월정액복수가입유형!="지상파"&
+                                      주요월정액복수가입유형!="캐치온"&
+                                      주요월정액복수가입유형!="프리미어"&
+                                        주요월정액복수가입유형!="기타")
+
+writexl::write_xlsx(onlyone,path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/onlyone.xlsx")
+writexl::write_xlsx(onemore,path="C:/Users/SKbroadband/Desktop/2차과제R/잠금 해제 파일/onemore.xlsx")
+
+# 2차과제 - 2 
+library(readxl)
+ppmdata <- readxl::read_excel(path="ppmyesdata.xlsx", col_names=TRUE)
+ppmdata <- ppmdata[,-4]
+isppm <- rep(0, times=856969)
+ppmdata1 <- cbind(ppmdata,isppm)
+ppmdata1 <- ppmdata1[,-4]
+ppmdata1 <- ppmdata1[,-7]
+ppmdata1 <- ppmdata1[,-1]
+str(ppmdata2)
+ppmdata2 <- ppmdata1
+ppmdata2 <- ppmdata2 %>% mutate(VODYES=ifelse(VOD현금구매경험여부=="Y",1,0))
+#vodyes vod 현금구매경험여부
+ppmdata2$VODYES <- as.factor(ppmdata2$VODYES)
+ppmdata2$다셋탑여부<- as.factor(ppmdata2$다셋탑여부)
+ppmdata2$서비스해지이력존재여부 <- as.factor(ppmdata2$서비스해지이력존재여부)
+ppmdata2$재약정여부<- as.factor(ppmdata2$재약정여부)
+ppmdata2$...9 <- as.factor(ppmdata2$...9)
+ppmdata2$서비스약정기간<- as.factor(ppmdata2$서비스약정기간)
+ppmdata2$시도명<- as.factor(ppmdata2$시도명)
+ppmdata2$고객상태<- as.factor(ppmdata2$고객상태)
+ppmdata2$B타민고객등급<- as.factor(ppmdata2$B타민고객등급)
+ppmdata2$VOD현금구매경험여부<- as.factor(ppmdata2$VOD현금구매경험여부)
+ppmdata2 <- ppmdata2[,-13]
+str(ppmdata2)
+
+notppmdata <- readxl::read_excel(path="notppmrealdata.xlsx", col_names=TRUE)
+notppmdata <- notppmdata[,-1]
+notppmdata <- notppmdata[,-3]
+notppmdata <- notppmdata[,-6]
+ppmdata3 <- ppmdata2 %>% filter(서비스가입후경과기간<13)
+ppmdata3 <- ppmdata3[,-10]
+notppmdata <- notppmdata[,-11]
+notppmdata <- cbind(notppmdata,isppm)
+str(notppmdata)
+str(ppmdata3)
+notppmdata$다셋탑여부<- as.factor(notppmdata$다셋탑여부)
+notppmdata$서비스해지이력존재여부 <- as.factor(notppmdata$서비스해지이력존재여부)
+notppmdata$재약정여부<- as.factor(notppmdata$재약정여부)
+notppmdata$...9 <- as.factor(notppmdata$...9)
+notppmdata$서비스약정기간<- as.factor(notppmdata$서비스약정기간)
+notppmdata$시도명<- as.factor(notppmdata$시도명)
+notppmdata$고객상태<- as.factor(notppmdata$고객상태)
+notppmdata$B타민고객등급<- as.factor(ppmdata2$B타민고객등급)
+notppmdata$VOD현금구매경험여부<- as.factor(notppmdata$VOD현금구매경험여부)
+str(notppmdata)
+str(ppmdata3)
+
+totaldata <- rbind(ppmdata3, notppmdata)
+logit <- glm(isppm ~ ., data=totaldata, family="binomial")
+summary(logit)
+
+writexl::write_xlsx(ppmdata3,path="C:/Users/SKbroadband/Desktop/808PPM가입자&미가입자/chuksoppmcustomer.xlsx")
+
+
+newvarppmdata <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/809/809ppmyes.xlsx", col_names=TRUE)
+newvarnotppmdata <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/809/809ppmno.xlsx", col_names=TRUE)
+newvarppmdata <- newvarppmdata[,-1]
+newvarnotppmdata <- newvarnotppmdata[,-1]
+newvarppmdata <- newvarppmdata[,-2]
+newvarnotppmdata <- newvarnotppmdata[,-2]
+newvarppmdata <- newvarppmdata[,-4]
+newvarnotppmdata <- newvarnotppmdata[,-4]
+newvarppmdata <- newvarppmdata[,-6]
+newvarnotppmdata <- newvarnotppmdata[,-6]
+newvarppmdata <- newvarppmdata[,-6]
+newvarnotppmdata <- newvarnotppmdata[,-6]
+newvarppmdata <- newvarppmdata[,-8]
+newvarnotppmdata <- newvarnotppmdata[,-8]
+newvarppmdata <- newvarppmdata[,-8]
+newvarnotppmdata <- newvarnotppmdata[,-8]
+newvarppmdata <- newvarppmdata[,-3]
+newvarnotppmdata <- newvarnotppmdata[,-3]
+newvarppmdata <- newvarppmdata[,-3]
+newvarnotppmdata <- newvarnotppmdata[,-3]
+newvarppmdata1 <- newvarppmdata
+
+isppm <- rep(0, times=635173)
+newvarppmdata2 <- cbind(newvarppmdata,isppm)
+newvarnotppmdata <- cbind(newvarnotppmdata,isppm)
+newvartotaldata <- rbind(newvarppmdata2, newvarnotppmdata)
+str(newvartotaldata)
+newvartotaldata$SET서비스가입유형 <- as.factor(newvartotaldata$SET서비스가입유형)
+newvartotaldata$...4 <- as.factor(newvartotaldata$...4)
+newvartotaldata$유치유통망유형 <- as.factor(newvartotaldata$유치유통망유형)
+newvartotaldata$...11 <- as.factor(newvartotaldata$...11)
+newvartotaldata$유통망구분 <- as.factor(newvartotaldata$유통망구분)
+newvartotaldata1 <- newvartotaldata %>% filter(newvartotaldata$...4=="AI STB(가온 BKO-AI700)"|
+                                                 newvartotaldata$...4=="STB(가온 BKO-100)")
+library(dplyr)
+unique(newvartotaldata1$...4)
+newvartotaldatacheck <- newvartotaldatacheck[,-1]
+newvar_logit2 <- glm(isppm ~ ., data=newvartotaldatacheck, family="binomial")
+summary(newvar_logit2)
+check <- newvar_logit$coefficients
+
+newvartotaldata1 <- newvartotaldata %>% group_by(newvartotaldata$...4,newvartotaldata$isppm) %>% summarize(n=n())
+newvartotaldata2 <- newvartotaldata %>% mutate(stb=ifelse(newvartotaldata$...4=="AI STB(가온 BKO-AI700)","v","n"))
+newvartotaldata2$stb <- as.factor(newvartotaldata2$stb)
+newvar_logit1 <- glm(isppm ~ ., data=newvartotaldata2, family="binomial")
+summary(newvar_logit1)
+str(newvartotaldata2)
+exp(coef(newvar_logit2))
+exp(coef(logit))
+
+ppmdatacheck <- newvarppmdata2 %>% group_by(newvarppmdata2$...4) %>% summarize(n=n())
+ppmdatacheck1 <- ppmdata3 %>% group_by(ppmdata3$...9) %>% summarize(n=n())
+
+
+newcustomerdata <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/808PPM가입자&미가입자/newcustppmyes.xlsx", col_names=TRUE)
+newcustomerdatanotppm <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/808PPM가입자&미가입자/newcustppmno.xlsx", col_names=TRUE)
+newvartotaldatacheck <- newvartotaldata %>% mutate(stb= ifelse(newvartotaldata$...4=="AI STB(가온 BKO-AI700)","ZAI",ifelse(newvartotaldata$...4=="STB(가온 BKO-100)","hd","nothdorai")))
+
+str(newcustomerdata)
+newvartotaldata$SET서비스가입유형 <- as.factor(newvartotaldata$SET서비스가입유형)
+
+vodnotppmdata <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/809/812notppmvod.xlsx", col_names=TRUE)
+vodnotppmdata <- vodnotppmdata[,-10]
+str(vodnotppmdata)
+library(dplyr)
+vodnotppmdata <- vodnotppmdata %>% mutate(total=성인+애니+CJ+기타+지상파+키즈+영화+종편)
+vodnotppmdata[is.na(vodnotppmdata)] <- 0
+vodnotppmdatamoneycheck <- vodnotppmdata %>% filter(total>=10000)
+vodnotppmdatamoneycheck2 <- vodnotppmdata %>% filter(total>5000&total<10000)
+vodnotppmdatamoneycheck3 <- vodnotppmdata %>% filter(total<=5000&total>0)
+vodnotppmdatamoneycheck4 <- vodnotppmdata %>% filter(total==0)
+check1 <- vodnotppmdatamoneycheck %>% filter(영화<1000)
+check2 <- vodnotppmdatamoneycheck2 %>% filter(영화<1000)
+
+sum(vodnotppmdatamoneycheck2$total)
+15993132/2203
+
+vodppmdata <- readxl::read_excel(path="C:/Users/SKbroadband/Desktop/809/812ppmvod.xlsx", col_names=TRUE)
+vodppmdata <- vodppmdata %>% mutate(total=AD+AN+CJ+ETC+GW+KZ+MV+TT)
+vodppmdata <- vodppmdata[,-2]
+vodppmdata[is.na(vodppmdata)] <- 0
+vodppmdata$TT <- as.numeric(vodppmdata$TT)
+vodppmdatamoneycheck <- vodppmdata %>% filter(total>=10000)
+vodppmdatamoneycheck2 <- vodppmdata %>% filter(total>5000&total<10000)
+vodppmdatamoneycheck3 <- vodppmdata %>% filter(total<=5000&total>0)
+vodppmdatamoneycheck4 <- vodppmdata %>% filter(total==0)
+sum(vodnotppmdata$total)
+27047854/7368 
+103828136/71777
+
+
+# 2차과제 - 3
+yesdata <- readxl::read_excel(path="ppmyes816.xlsx", col_names=TRUE)
+nodata <- readxl::read_excel(path="ppmno816.xlsx", col_names=TRUE)
+
+isppm <- rep(0, times=123744)
+nodata <- cbind(nodata,isppm)
+isppm <- rep(1, times=14749)
+yesdata <- cbind(yesdata,isppm)
+nodata <- nodata[,-1]
+yesdata <- yesdata[,-1]
+library(dplyr)
+nodata_filt <- nodata %>% filter(money!=0)
+yesdata_filt <- yesdata %>% filter(money!=0)
+
+totalppmdata <- rbind(yesdata_filt, nodata_filt)
+logit <- glm(isppm ~ ., data=totalppmdata, family="binomial")
+summary(logit)
+
+logit <- glm(isppm ~ ., data=div25, family="binomial")
+div1 <- totalppmdata %>% filter(money>0 & money<=1000)
+div2 <- totalppmdata %>% filter(money>1000 & money<=2000)
+div3 <- totalppmdata %>% filter(money>2000 & money<=3000)
+div4 <- totalppmdata %>% filter(money>3000 & money<=4000)
+div5 <- totalppmdata %>% filter(money>4000 & money<=5000)
+div6 <- totalppmdata %>% filter(money>5000 & money<=6000)
+div7 <- totalppmdata %>% filter(money>6000 & money<=7000)
+div8 <- totalppmdata %>% filter(money>7000 & money<=8000)
+div9 <- totalppmdata %>% filter(money>8000 & money<=9000)
+div10 <- totalppmdata %>% filter(money>9000 & money<=10000)
+div11 <- totalppmdata %>% filter(money>10000 & money<=12000)
+div12 <- totalppmdata %>% filter(money>12000 & money<=14000)
+div13 <- totalppmdata %>% filter(money>14000 & money<=16000)
+div14 <- totalppmdata %>% filter(money>16000 & money<=18000)
+div15 <- totalppmdata %>% filter(money>18000 & money<=20000)
+div16 <- totalppmdata %>% filter(money>20000 & money<=22000)
+div17 <- totalppmdata %>% filter(money>22000 & money<=24000)
+div18 <- totalppmdata %>% filter(money>24000 & money<=26000)
+div19 <- totalppmdata %>% filter(money>26000 & money<=28000)
+div20 <- totalppmdata %>% filter(money>28000 & money<=30000)
+div21 <- totalppmdata %>% filter(money>30000 & money<=35000)
+div22 <- totalppmdata %>% filter(money>35000 & money<=40000)
+div23 <- totalppmdata %>% filter(money>40000 & money<=45000)
+div24 <- totalppmdata %>% filter(money>45000 & money<=50000)
+div25 <- totalppmdata %>% filter(money>50000)
+
+names(div1) <- c("div1money","div1isppm")
+
